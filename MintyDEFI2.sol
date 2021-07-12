@@ -240,7 +240,6 @@ contract IMintyDEFI2Factory is IERC223Recipient{
 	function precalculate(address fromToken, address toToken, uint amountIn) external view returns (uint256);
 	function swap(address fromToken, address toToken, uint amountIn) external;
 	function getPair(address tokenA, address tokenB) external view returns (address);
-	function flashLoanAttackProtection() external view;
 	event Swap(address indexed sender, address indexed from, address indexed to, uint256 amountIn);
 	event LiquidityMint(address indexed sender, address indexed tokenA, address indexed tokenB, uint256 liquidity);
 	event LiquidityBurn(address indexed sender, address indexed tokenA, address indexed tokenB, uint256 liquidity);
@@ -324,13 +323,13 @@ contract MintyDEFI2Factory is IMintyDEFI2Factory{
 		}
 		safeTransferFrom2(tokenA, pair, amountA);
 		safeTransferFrom2(tokenB, pair, amountB);
+		mutex = 1;
 		IERC223MintableBurnable(pair).mint(msg.sender, liquidity);
 		if(tokenA < tokenB){
 			LiquidityMint(msg.sender, tokenA, tokenB, liquidity);
 		} else{
 			LiquidityMint(msg.sender, tokenB, tokenA, liquidity);
 		}
-		mutex = 1;
 	}
 	function safeTransferFrom2(address token, address to, uint amount) public{
 		IERC20 erc20 = IERC20(token);
@@ -365,15 +364,12 @@ contract MintyDEFI2Factory is IMintyDEFI2Factory{
 		require(totalSupply != 0);
 		IMintyDEFI2PairAccount(msg.sender).withdrawToken0(_from, _value.mul(IERC20(token0).balanceOf(msg.sender)) / totalSupply);
 		IMintyDEFI2PairAccount(msg.sender).withdrawToken1(_from, _value.mul(IERC20(token1).balanceOf(msg.sender)) / totalSupply);
+		mutex = 1;
 		IERC223MintableBurnable(msg.sender).burn(_value);
 		LiquidityBurn(msg.sender, token0, token1, _value);
-		mutex = 1;
+
 	}
 	function getPair(address tokenA, address tokenB) external view returns (address){
 		return pairAccounts[tokenA][tokenB];
-	}
-	//Flash Loan Attack Protection for smart contracts that use MintyDEFI as a price oracle
-	function flashLoanAttackProtection() external view{
-		require(mutex == 1);
 	}
 }
